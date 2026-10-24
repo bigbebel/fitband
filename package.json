@@ -1,0 +1,13 @@
+{
+  "name": "fitband",
+  "private": true,
+  "scripts": {
+    "install:all": "cd server && npm i && cd ../client && npm i",
+    "dev": "concurrently -n server,client \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && PORT=3000 node --watch index.js",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && node index.js"
+  },
+  "devDependencies": { "concurrently": "^9.1.0" }
+}
