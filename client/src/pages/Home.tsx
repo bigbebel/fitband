@@ -49,7 +49,7 @@ export default function Home() {
                   <b>{t.name}</b>
                   <div className="muted small">{t.desc || '소개 없음'} · 멤버 {t.memberCount}명</div>
                 </div>
-                {t.todayCount ? <span className="badge">오늘 {t.todayCount}</span> : null}
+                {t.todayCount ? <span className="badge">오늘 {t.todayCount}명</span> : null}
               </Link>
             ))}
           </div>
@@ -70,21 +70,21 @@ export default function Home() {
         <Sheet title="새 팀 만들기" onClose={() => setMode(null)}>
           <label className="field"><span>팀 이름</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 아침 6시 스터디" /></label>
           <label className="field"><span>소개 (선택)</span><input className="input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="팀 소개" /></label>
-          {err && <p className="small" style={{ color: 'var(--danger)' }}>{err}</p>}
+          {err && <p className="err">{err}</p>}
           <button className="btn" disabled={!name.trim()} onClick={create}>만들기</button>
         </Sheet>
       )}
       {mode === 'join' && (
         <Sheet title="초대 코드로 참여" onClose={() => setMode(null)}>
           <label className="field"><span>초대 코드</span><input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="8자리 코드" style={{ textTransform: 'uppercase' }} /></label>
-          {err && <p className="small" style={{ color: 'var(--danger)' }}>{err}</p>}
+          {err && <p className="err">{err}</p>}
           <button className="btn" onClick={() => joinByCode(code)}>참여하기</button>
         </Sheet>
       )}
       {mode === 'scan' && (
         <Sheet title="QR 코드 스캔" onClose={() => setMode(null)}>
           <QrScanner onResult={joinByCode} />
-          {err && <p className="small" style={{ color: 'var(--danger)' }}>{err}</p>}
+          {err && <p className="err">{err}</p>}
           <button className="btn ghost" onClick={() => setMode('join')}>코드 직접 입력</button>
         </Sheet>
       )}

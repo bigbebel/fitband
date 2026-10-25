@@ -5,6 +5,7 @@ import { TabBar } from './components';
 import Home from './pages/Home';
 import Team from './pages/Team';
 import Report from './pages/Report';
+import Stats from './pages/Stats';
 import { Join, Login, Me } from './pages/Misc';
 
 function Shell() {
@@ -24,6 +25,7 @@ function Shell() {
         <Route path="/" element={<Home />} />
         <Route path="/team/:id" element={<Team />} />
         <Route path="/report" element={<Report />} />
+        <Route path="/stats" element={<Stats />} />
         <Route path="/me" element={<Me onLogout={refresh} />} />
         <Route path="/join/:code" element={<Join onDone={refresh} />} />
         <Route path="*" element={<Navigate to="/" replace />} />

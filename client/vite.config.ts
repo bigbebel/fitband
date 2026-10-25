@@ -11,8 +11,8 @@ export default defineConfig({
         name: 'FitBand - 공부·식단·운동 팀 보고서',
         short_name: 'FitBand',
         description: '팀과 함께하는 공부·식단·운동 기록',
-        theme_color: '#4f46e5',
-        background_color: '#f5f6fa',
+        theme_color: '#0b0d11',
+        background_color: '#0b0d11',
         display: 'standalone',
         start_url: '/',
         icons: [

@@ -38,6 +38,13 @@ npm run dev           # 서버 :3000, 클라이언트 :5173 (폰에서는 PC IP:
 | POST | /api/entries/workout | 운동 메모 (json) |
 | POST | /api/report/share | 하루 보고서를 팀에 공유 |
 
+## v2 추가 기능
+- 이메일 계정(Supabase Auth): 어느 기기에서나 같은 기록
+- 라이즈 스타일 다크 UI, 운동은 종목·세트(무게×횟수)·볼륨 기록
+- 칼로리 목표 설정 + 달성률 링, 주간/월간 통계 그래프
+- 팀 보고서 댓글·좋아요
+- 건강 앱 연동: 아이폰 단축어 → `POST /api/health/import/:token`, 삼성 헬스 CSV 업로드 → `POST /api/health/samsung`
+
 ## 다음 단계 아이디어
 - 닉네임 로그인 → 소셜 로그인 / JWT
 - JSON DB → SQLite/Postgres, 업로드 → S3
