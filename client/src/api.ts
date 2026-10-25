@@ -22,6 +22,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !(init.body instanceof FormData)) headers['content-type'] = 'application/json';
   const res = await fetch(path, { ...init, headers });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && u) { setUser(null); location.reload(); }
   if (!res.ok) throw new Error(data.error || `오류 (${res.status})`);
   return data;
 }

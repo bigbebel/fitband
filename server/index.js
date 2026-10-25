@@ -6,7 +6,7 @@ import fs from 'fs';
 import QRCode from 'qrcode';
 import { nanoid, customAlphabet } from 'nanoid';
 import { fileURLToPath } from 'url';
-import db, { save } from './db.js';
+import db, { save, load, storeUpload } from './db.js';
 import { analyzeMeal } from './ai.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +23,7 @@ const upload = multer({
     destination: UPLOAD_DIR,
     filename: (_req, file, cb) => cb(null, nanoid(12) + path.extname(file.originalname || '').toLowerCase()),
   }),
-  limits: { fileSize: 200 * 1024 * 1024 }, // 타임랩스 영상 고려
+  limits: { fileSize: 50 * 1024 * 1024 }, // 타임랩스 영상 (Supabase 무료 플랜 한도 50MB)
 });
 
 const inviteCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8);
@@ -145,12 +145,17 @@ app.get('/api/report/calendar', auth, (req, res) => {
 });
 
 // 공부: 타임랩스(영상/이미지) + 메모
-app.post('/api/entries/study', auth, upload.single('file'), (req, res) => {
+app.post('/api/entries/study', auth, upload.single('file'), async (req, res) => {
+  let fileUrl = null;
+  if (req.file) {
+    try { fileUrl = await storeUpload(req.file.path, req.file.filename, req.file.mimetype); }
+    catch (err) { return res.status(500).json({ error: '파일 업로드 실패: ' + err.message }); }
+  }
   const e = {
     id: nanoid(10), userId: req.user.id, type: 'study', date: req.body.date || today(), createdAt: Date.now(),
     memo: String(req.body.memo || ''), subject: String(req.body.subject || ''),
     minutes: Number(req.body.minutes) || 0,
-    file: req.file ? `/uploads/${req.file.filename}` : null,
+    file: fileUrl,
     fileType: req.file ? (req.file.mimetype.startsWith('video') ? 'video' : 'image') : null,
     sharedTeams: parseTeams(req.body.teams),
   };
@@ -162,10 +167,11 @@ app.post('/api/entries/meal', auth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: '사진이 필요합니다' });
   try {
     const analysis = await analyzeMeal(req.file.path, req.file.mimetype);
+    const fileUrl = await storeUpload(req.file.path, req.file.filename, req.file.mimetype);
     const e = {
       id: nanoid(10), userId: req.user.id, type: 'meal', date: req.body.date || today(), createdAt: Date.now(),
       mealType: String(req.body.mealType || '식사'), memo: String(req.body.memo || ''),
-      file: `/uploads/${req.file.filename}`, analysis,
+      file: fileUrl, analysis,
       sharedTeams: parseTeams(req.body.teams),
     };
     db.entries.push(e); save(); res.json(e);
@@ -248,4 +254,5 @@ if (fs.existsSync(dist)) {
 }
 
 const PORT = process.env.PORT || 3000;
+await load();
 app.listen(PORT, () => console.log(`FitBand server on http://localhost:${PORT} (OpenAI: ${process.env.OPENAI_API_KEY ? 'on' : 'mock'})`));
