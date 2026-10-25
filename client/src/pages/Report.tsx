@@ -110,7 +110,7 @@ function AddSheet({ date, initial, onClose, onSaved }: { date: string; initial: 
   };
 
   return (
-    <Sheet title="기록 추가" onClose={onClose}>
+    <Sheet title="기록 추가" onClose={onClose} tall>
       <div className="subtabs">
         <button className={'workout' + (type === 'workout' ? ' active' : '')} onClick={() => setType('workout')}>💪 운동</button>
         <button className={'meal' + (type === 'meal' ? ' active' : '')} onClick={() => setType('meal')}>🍽 식단</button>
@@ -150,7 +150,7 @@ function AddSheet({ date, initial, onClose, onSaved }: { date: string; initial: 
       )}
       {type === 'meal' && (
         <>
-          <FilePick accept="image/*" capture file={file} onChange={setFile} hint="📷 음식 사진 찍기 / 올리기 — AI가 칼로리·영양소를 분석해요" />
+          <FilePick accept="image/*" file={file} onChange={setFile} icon="🍽" color="var(--meal)" hint="음식 사진을 올리면 AI가 칼로리·영양소를 분석해요" />
           <div className="subtabs">
             {['아침', '점심', '저녁', '간식'].map((m) => <button key={m} className={'meal' + (mealType === m ? ' active' : '')} onClick={() => setMealType(m)}>{m}</button>)}
           </div>
@@ -159,7 +159,7 @@ function AddSheet({ date, initial, onClose, onSaved }: { date: string; initial: 
       )}
       {type === 'study' && (
         <>
-          <FilePick accept="video/*,image/*" file={file} onChange={setFile} hint="📹 타임랩스 영상 / 사진 올리기 (선택, 50MB 이하)" />
+          <FilePick accept="video/*,image/*" video file={file} onChange={setFile} icon="📹" color="var(--study)" hint="타임랩스 영상이나 공부 사진 (선택, 50MB 이하)" />
           <div className="row" style={{ marginBottom: 12 }}>
             <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="과목 (예: 영어)" />
             <input className="input" type="number" inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="분" style={{ width: 90 }} />

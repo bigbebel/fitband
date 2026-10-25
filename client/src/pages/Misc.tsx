@@ -135,17 +135,16 @@ function AppleSheet({ onClose, user, onUser }: { onClose: () => void; user: User
           <button className="btn sm ghost" style={{ marginBottom: 12 }} onClick={issue}>주소 재발급</button>
         </>
       )}
+      <p className="muted small" style={{ marginTop: 0 }}>아이폰 정책상 웹앱은 건강 앱을 직접 읽을 수 없어요. 대신 기본 앱 <b>단축어</b>에 동작 3개만 넣으면, 한 번 탭으로 오늘 운동이 전부 들어와요. (처음 실행 때 건강 접근 허용 창이 나오면 허용)</p>
       <ol className="steps">
-        <li><b>단축어</b> 앱 → ＋ 새 단축어 → 이름 "운동 보내기"</li>
-        <li>동작 추가: <b>건강 샘플 찾기</b> → 유형 <b>운동</b>, 필터 "시작 날짜가 오늘" (원하면 "지난 7일")</li>
-        <li>동작 추가: <b>각 항목 반복</b> (위 운동 결과)</li>
-        <li>반복 안에 <b>날짜 포맷</b> ×2: 반복 항목의 <b>시작 날짜</b>와 <b>종료 날짜</b> 각각 → 포맷 "사용자 설정" <code className="pill">yyyy-MM-dd HH:mm</code></li>
-        <li>반복 안에 <b>텍스트</b>: <code className="pill">운동 유형|시작포맷|종료포맷|기간|활성 에너지|거리</code> (각 항목은 반복 항목의 변수를 끼워넣기, 구분자는 <b>|</b>)</li>
-        <li>반복 끝 → <b>텍스트 결합</b> (반복 결과, 줄바꿈)</li>
-        <li><b>URL 콘텐츠 가져오기</b>: URL = 위 전송 주소, 방식 <b>POST</b>, 본문 요청 <b>파일</b> → 결합된 텍스트</li>
-        <li>실행 → 건강 접근 허용. 보고서 탭에 운동이 들어오면 성공! (자동화 탭에서 "매일 저녁 10시"로 자동 실행 가능)</li>
+        <li><b>단축어</b> 앱 → 오른쪽 위 <b>＋</b></li>
+        <li>동작 검색 <b>"건강 샘플 찾기"</b> 추가 → 유형을 <b>운동</b>으로, 필터 추가: <b>시작 날짜 · 오늘</b></li>
+        <li>동작 검색 <b>"각 항목 반복"</b> 추가 (자동으로 위 결과를 반복)</li>
+        <li>반복 안에 <b>"URL 콘텐츠 가져오기"</b> 추가 → URL에 위 전송 주소 붙여넣기 → <b>방식 POST</b> → 요청 본문 <b>JSON</b> → 필드 4개 추가 (값은 "반복 항목" 변수를 넣고 각각 운동 유형 / 시작 날짜 / 종료 날짜 / 활동 에너지 선택):
+          <div style={{ marginTop: 4 }}><code className="pill">유형</code> <code className="pill">시작</code> <code className="pill">종료</code> <code className="pill">칼로리</code></div></li>
+        <li>오른쪽 위 <b>완료</b> → 실행 ▶︎ → 건강 접근 <b>허용</b>. 보고서 탭에 운동이 들어오면 성공!</li>
       </ol>
-      <p className="muted small">이미 가져온 운동은 중복으로 들어가지 않아요. 운동 이름은 자동으로 한글로 바뀝니다.</p>
+      <p className="muted small">날짜 형식은 서버가 알아서 처리해요. 단축어 앱의 <b>자동화</b> 탭에서 "매일 오후 10:00 → 이 단축어 실행"을 만들면 손 대지 않아도 매일 들어와요. 이미 가져온 운동은 중복되지 않습니다.</p>
     </Sheet>
   );
 }

@@ -1,6 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import React, { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { api, fmtTime, sourceLabel, type Entry, type Report, type Summary, type Team } from './api';
+import { api, colorOf, fmtTime, sourceLabel, type Entry, type Report, type Summary, type Team } from './api';
+
+export function TeamAvatar({ team, size = 44 }: { team: Pick<Team, 'id' | 'name' | 'emoji' | 'photo' | 'color'>; size?: number }) {
+  const style = { width: size, height: size, fontSize: size * 0.42, background: team.color || colorOf(team.id), borderRadius: size * 0.3 };
+  if (team.photo) return <img src={team.photo} alt="" className="avatar" style={{ ...style, objectFit: 'cover' }} />;
+  if (team.emoji) return <div className="avatar" style={{ ...style, fontSize: size * 0.55 }}>{team.emoji}</div>;
+  return <div className="avatar" style={style}>{team.name[0]}</div>;
+}
 
 export function TopBar({ title, back, right }: { title: string; back?: boolean; right?: ReactNode }) {
   const nav = useNavigate();
@@ -25,10 +32,10 @@ export function TabBar() {
   );
 }
 
-export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({ title, onClose, children, tall }: { title: string; onClose: () => void; children: ReactNode; tall?: boolean }) {
   return (
     <div className="sheet-bg" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div className={'sheet' + (tall ? ' tall' : '')} onClick={(e) => e.stopPropagation()}>
         <h2>{title}</h2>
         {children}
       </div>
@@ -151,13 +158,29 @@ export function TeamPicker({ value, onChange }: { value: string[]; onChange: (v:
   );
 }
 
-export function FilePick({ accept, file, onChange, hint, capture }: { accept: string; file: File | null; onChange: (f: File | null) => void; hint: string; capture?: boolean }) {
+// 큰 업로드 영역: 카메라로 찍기 / 앨범에서 선택 두 버튼
+export function FilePick({ accept, file, onChange, hint, icon = '📷', color = 'var(--meal)', video }: { accept: string; file: File | null; onChange: (f: File | null) => void; hint: string; icon?: string; color?: string; video?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => { if (!file) return setUrl(null); const u = URL.createObjectURL(file); setUrl(u); return () => URL.revokeObjectURL(u); }, [file]);
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => { onChange(e.target.files?.[0] || null); e.target.value = ''; };
+  if (url) return (
+    <div className="file-big has" style={{ borderColor: color }}>
+      {file!.type.startsWith('video') ? <video src={url} controls playsInline /> : <img src={url} alt="" />}
+      <button className="btn sm ghost" style={{ position: 'absolute', top: 10, right: 10 }} onClick={() => onChange(null)}>✕ 다시 선택</button>
+    </div>
+  );
   return (
-    <label className="file-pick">
-      <input type="file" accept={accept} capture={capture ? 'environment' : undefined} onChange={(e) => onChange(e.target.files?.[0] || null)} />
-      {url ? (file!.type.startsWith('video') ? <video src={url} controls playsInline /> : <img src={url} alt="" />) : hint}
-    </label>
+    <div className="file-big" style={{ borderColor: color }}>
+      <div className="file-ico" style={{ background: color }}>{icon}</div>
+      <div className="file-hint">{hint}</div>
+      <div className="row" style={{ width: '100%', gap: 8 }}>
+        <label className="btn" style={{ background: color, color: '#0b0d11' }}>
+          <input type="file" accept={accept} capture="environment" onChange={pick} hidden />{video ? '🎥 직접 촬영' : '📷 카메라로 찍기'}
+        </label>
+        <label className="btn ghost">
+          <input type="file" accept={accept} onChange={pick} hidden />🖼 앨범에서 선택
+        </label>
+      </div>
+    </div>
   );
 }

@@ -1,13 +1,57 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, colorOf, fmtDate, fmtTime, getUser, type Report, type Team as TeamT } from '../api';
-import { ReportView, Sheet, TopBar, fmtVol } from '../components';
+
+function EditTeamSheet({ team, onClose, onSaved }: { team: TeamT; onClose: () => void; onSaved: (t: TeamT) => void }) {
+  const [name, setName] = useState(team.name);
+  const [desc, setDesc] = useState(team.desc || '');
+  const [emoji, setEmoji] = useState(team.emoji || '');
+  const [color, setColor] = useState(team.color || '');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(team.photo || null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const pickPhoto = (f: File | null) => { setPhoto(f); setEmoji(''); if (f) setPreview(URL.createObjectURL(f)); };
+  const save = async () => {
+    setBusy(true); setErr('');
+    try {
+      let t = await api.updateTeam(team.id, { name, desc, emoji, color });
+      if (photo) { const fd = new FormData(); fd.append('file', photo); t = await api.teamPhoto(team.id, fd); }
+      onSaved(t);
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const previewTeam = { id: team.id, name: name || team.name, emoji, color, photo: emoji ? null : preview };
+  return (
+    <Sheet title="팀 프로필 꾸미기" onClose={onClose} tall>
+      <div className="center" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'inline-block' }}><TeamAvatar team={previewTeam} size={96} /></div>
+        <div className="row" style={{ justifyContent: 'center', marginTop: 10, gap: 8 }}>
+          <label className="btn sm ghost"><input type="file" accept="image/*" hidden onChange={(e) => pickPhoto(e.target.files?.[0] || null)} />🖼 사진 올리기</label>
+          {(preview || emoji) && <button className="btn sm ghost" onClick={() => { setPhoto(null); setPreview(null); setEmoji(''); }}>초기화</button>}
+        </div>
+      </div>
+      <div className="muted small" style={{ marginBottom: 6 }}>이모티콘</div>
+      <div className="emoji-grid">{EMOJIS.map((e) => <button key={e} className={emoji === e ? 'on' : ''} onClick={() => { setEmoji(e); setPhoto(null); setPreview(null); }}>{e}</button>)}</div>
+      <div className="muted small" style={{ marginBottom: 6 }}>배경색</div>
+      <div className="color-row">{COLORS.map((c) => <button key={c} className={color === c ? 'on' : ''} style={{ background: c }} onClick={() => setColor(c)} />)}</div>
+      <label className="field"><span>팀 이름</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field"><span>소개</span><input className="input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="팀 소개" /></label>
+      {err && <p className="err">{err}</p>}
+      <button className="btn" disabled={busy || !name.trim()} onClick={save}>{busy ? '저장 중…' : '저장'}</button>
+    </Sheet>
+  );
+}
+import { ReportView, Sheet, TeamAvatar, TopBar, fmtVol } from '../components';
+
+const EMOJIS = ['💪', '🏃', '🧘', '🏋️', '🚴', '🏊', '⚽', '🏀', '🥊', '🧗', '📚', '✏️', '🎓', '💻', '🧠', '🍎', '🥗', '🍗', '🥛', '☕', '🔥', '⚡', '🌟', '🎯', '🏆', '🚀', '🌱', '🌅', '🌙', '🐻', '🐱', '🐶', '🦁', '🦄', '🐥', '🐸', '🐧', '🦊', '🐯', '🐼'];
+const COLORS = ['#c6ff3d', '#5aa9ff', '#ffb547', '#ff5a6a', '#b388ff', '#4dd0e1', '#ff8a65', '#81c784', '#f06292', '#ffd54f'];
 
 export default function Team() {
   const { id = '' } = useParams();
   const [team, setTeam] = useState<TeamT | null>(null);
   const [feed, setFeed] = useState<Report[]>([]);
   const [qr, setQr] = useState<{ url: string; dataUrl: string; inviteCode: string } | null>(null);
+  const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [text, setText] = useState<Record<string, string>>({});
   const nav = useNavigate();
@@ -45,8 +89,9 @@ export default function Team() {
       <div className="page">
         <div className="card">
           <div className="row">
-            <div className="avatar" style={{ background: colorOf(team.id) }}>{team.name[0]}</div>
-            <div className="grow"><b>{team.name}</b><div className="muted small">{team.desc || '소개 없음'}</div></div>
+            <div onClick={() => setEditing(true)} style={{ cursor: 'pointer' }}><TeamAvatar team={team} size={56} /></div>
+            <div className="grow"><b style={{ fontSize: 17 }}>{team.name}</b><div className="muted small">{team.desc || '소개 없음'}</div></div>
+            <button className="icon-btn" onClick={() => setEditing(true)} title="팀 꾸미기">✏️</button>
             <button className="icon-btn" onClick={leave} title="나가기">🚪</button>
           </div>
           <div style={{ marginTop: 10 }}>
@@ -92,6 +137,7 @@ export default function Team() {
         })}
       </div>
 
+      {editing && <EditTeamSheet team={team} onClose={() => setEditing(false)} onSaved={(t) => { setTeam({ ...team, ...t }); setEditing(false); }} />}
       {qr && (
         <Sheet title="QR 코드로 초대" onClose={() => setQr(null)}>
           <div className="center">

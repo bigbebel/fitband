@@ -128,6 +128,25 @@ app.get('/api/teams/:id', auth, (req, res) => {
   const members = db.members.filter((m) => m.teamId === team.id).map((m) => db.users.find((u) => u.id === m.userId)).filter(Boolean).map((u) => ({ id: u.id, name: u.name }));
   res.json({ ...team, members, isMember: members.some((u) => u.id === req.user.id) });
 });
+// 팀 프로필: 이름/소개/이모지/색상 및 사진
+app.patch('/api/teams/:id', auth, (req, res) => {
+  const team = db.teams.find((t) => t.id === req.params.id);
+  if (!team) return res.status(404).json({ error: '팀 없음' });
+  if (!requireMember(req, res, team.id)) return;
+  if (req.body.name !== undefined && String(req.body.name).trim()) team.name = String(req.body.name).trim();
+  if (req.body.desc !== undefined) team.desc = String(req.body.desc);
+  if (req.body.emoji !== undefined) { team.emoji = String(req.body.emoji).slice(0, 8); if (team.emoji) team.photo = null; }
+  if (req.body.color !== undefined) team.color = String(req.body.color).slice(0, 20);
+  save(); res.json(team);
+});
+app.post('/api/teams/:id/photo', auth, upload.single('file'), async (req, res) => {
+  const team = db.teams.find((t) => t.id === req.params.id);
+  if (!team) return res.status(404).json({ error: '팀 없음' });
+  if (!requireMember(req, res, team.id)) return;
+  if (!req.file) return res.status(400).json({ error: '사진이 필요합니다' });
+  try { team.photo = await storeUpload(req.file.path, 'team-' + req.file.filename, req.file.mimetype); team.emoji = ''; save(); res.json(team); }
+  catch (err) { res.status(500).json({ error: '업로드 실패: ' + err.message }); }
+});
 app.delete('/api/teams/:id/leave', auth, (req, res) => {
   db.members = db.members.filter((m) => !(m.teamId === req.params.id && m.userId === req.user.id));
   save(); res.json({ ok: true });

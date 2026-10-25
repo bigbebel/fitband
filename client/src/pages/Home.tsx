@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, colorOf, type Team } from '../api';
-import { Sheet, TopBar } from '../components';
+import { api, type Team } from '../api';
+import { Sheet, TeamAvatar, TopBar } from '../components';
 import { QrScanner } from './QrScanner';
 
 export default function Home() {
@@ -44,7 +44,7 @@ export default function Home() {
             <h3>내 팀</h3>
             {teams.map((t) => (
               <Link to={`/team/${t.id}`} className="team-item" key={t.id}>
-                <div className="avatar" style={{ background: colorOf(t.id) }}>{t.name[0]}</div>
+                <TeamAvatar team={t} />
                 <div className="grow">
                   <b>{t.name}</b>
                   <div className="muted small">{t.desc || '소개 없음'} · 멤버 {t.memberCount}명</div>

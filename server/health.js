@@ -16,6 +16,14 @@ function parseTime(v) {
   // 'yyyy-MM-dd HH:mm' 처럼 타임존 없는 경우 KST 로 간주
   const m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(\.\d+)?$/);
   if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)) - KST;
+  // 단축어 기본 한국어 포맷: "2026. 10. 25. 오전 7:10" / "2026년 10월 25일 오후 7:10:30"
+  const k = s.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D+?(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(오전|오후|AM|PM)?/i);
+  if (k) {
+    const ap = (k[4] || k[8] || '').toUpperCase();
+    let h = +k[5];
+    if (ap === '오후' || ap === 'PM') { if (h < 12) h += 12; } else if (ap === '오전' || ap === 'AM') { if (h === 12) h = 0; }
+    return Date.UTC(+k[1], +k[2] - 1, +k[3], h, +k[6], +(k[7] || 0)) - KST;
+  }
   const d = Date.parse(s);
   return Number.isNaN(d) ? null : d;
 }
@@ -47,7 +55,7 @@ export function normalizeWorkouts(body, source) {
   let list = [];
   if (Array.isArray(body)) list = body;
   else if (body && Array.isArray(body.workouts)) list = body.workouts;
-  else if (body && (body.name || body.type || body.start)) list = [body];
+  else if (body && (body.name || body.type || body.start || body.유형 || body.시작)) list = [body];
   else if (body && typeof body.text === 'string') {
     // 한 줄에 하나: 종류|시작|종료|시간|칼로리|거리
     list = body.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
@@ -56,17 +64,24 @@ export function normalizeWorkouts(body, source) {
     });
   }
   return list.map((w) => {
-    const start = parseTime(w.start || w.startDate || w.start_time) || Date.now();
-    const end = parseTime(w.end || w.endDate || w.end_time);
-    let minutes = parseMinutes(w.duration ?? w.minutes);
+    const start = parseTime(w.start || w.startDate || w.start_time || w.시작 || w['시작 날짜']) || Date.now();
+    const end = parseTime(w.end || w.endDate || w.end_time || w.종료 || w['종료 날짜']);
+    let minutes = parseMinutes(w.duration ?? w.minutes ?? w.기간);
     if (!minutes && end) minutes = Math.round((end - start) / 60000);
     return {
       source, externalId: w.id || w.uuid || null, start, date: dateOf(start),
-      name: nameOf(w.name || w.type || w.activity), minutes,
-      calories: Math.round(num(w.calories ?? w.energy ?? w.activeEnergy)),
-      distanceKm: Math.round(num(w.distance) * (/\bm\b(?!i)/.test(String(w.distance || '')) && !/km/i.test(String(w.distance || '')) ? 0.001 : 1) * 100) / 100,
+      name: nameOf(w.name || w.type || w.activity || w.유형 || w['운동 유형']), minutes,
+      calories: Math.round(num(w.calories ?? w.energy ?? w.activeEnergy ?? w.칼로리 ?? w['활동 에너지'])),
+      distanceKm: distKm(w.distance ?? w.거리),
     };
   }).filter((w) => w.minutes > 0 || w.calories > 0);
+}
+
+function distKm(v) {
+  const s = String(v ?? ''); const x = num(s);
+  if (!x) return 0;
+  const meters = /\bm\b/i.test(s) && !/km/i.test(s);
+  return Math.round((meters ? x / 1000 : x > 500 ? x / 1000 : x) * 100) / 100; // 단위 없는 큰 수는 m 로 간주
 }
 
 const SAMSUNG_TYPES = {

@@ -1,5 +1,5 @@
 export type User = { id: string; name: string; email?: string; calorieGoal?: number; healthToken?: string };
-export type Team = { id: string; name: string; desc: string; ownerId: string; inviteCode: string; memberCount?: number; todayCount?: number; members?: User[]; isMember?: boolean };
+export type Team = { id: string; name: string; desc: string; emoji?: string; photo?: string | null; color?: string; ownerId: string; inviteCode: string; memberCount?: number; todayCount?: number; members?: User[]; isMember?: boolean };
 export type Nutrition = { calories: number; carbs: number; protein: number; fat: number; sodium: number; sugar: number };
 export type Food = Nutrition & { name: string; amount: string };
 export type SetRow = { weight: number; reps: number };
@@ -54,6 +54,8 @@ export const api = {
   teams: () => req<Team[]>('/api/teams'),
   createTeam: (name: string, desc: string) => req<Team>('/api/teams', { method: 'POST', body: JSON.stringify({ name, desc }) }),
   team: (id: string) => req<Team>(`/api/teams/${id}`),
+  updateTeam: (id: string, body: Partial<Team>) => req<Team>(`/api/teams/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  teamPhoto: (id: string, fd: FormData) => req<Team>(`/api/teams/${id}/photo`, { method: 'POST', body: fd }),
   leaveTeam: (id: string) => req(`/api/teams/${id}/leave`, { method: 'DELETE' }),
   teamQr: (id: string) => req<{ url: string; dataUrl: string; inviteCode: string }>(`/api/teams/${id}/qr?origin=${encodeURIComponent(location.origin)}`),
   invite: (code: string) => req<Team>(`/api/invite/${code}`),
