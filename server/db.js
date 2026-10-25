@@ -15,7 +15,7 @@ export const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
   : null;
 
-const empty = { users: [], teams: [], members: [], entries: [], comments: [], likes: [] };
+const empty = { users: [], teams: [], members: [], entries: [], comments: [], likes: [], posts: [] };
 const db = structuredClone(empty);
 
 export async function load() {

@@ -15,6 +15,11 @@ export type Summary = { studyMinutes: number; studyCount: number; mealCount: num
 export type Comment = { id: string; text: string; createdAt: number; author: { id: string; name: string } };
 export type Report = { date: string; user: User; entries: Entry[]; summary: Summary; key?: string; teamId?: string; likes?: string[]; liked?: boolean; comments?: Comment[] };
 export type DayStat = Summary & { date: string };
+export type DayFeed = { date: string; reports: Report[]; submitted: User[]; missing: User[] };
+export type Post = { id: string; teamId: string; text: string; photo: string | null; createdAt: number; date: string; author: User; likes: string[]; liked: boolean; comments: Comment[] };
+export type TeamCalendar = { members: User[]; days: Record<string, { submitted: string[]; study: number; meal: number; workout: number }> };
+export type MemberStat = { user: User; perDay: (DayStat & { submitted: boolean })[]; total: { submittedDays: number; studyMinutes: number; workoutMinutes: number; workoutVolume: number; workoutCount: number; calories: number; mealDays: number; avgCalories: number } };
+export type TeamStats = { dates: string[]; members: MemberStat[] };
 
 const KEY = 'fitband.session';
 type Session = { token: string; refresh?: string; user: User };
@@ -60,9 +65,14 @@ export const api = {
   teamQr: (id: string) => req<{ url: string; dataUrl: string; inviteCode: string }>(`/api/teams/${id}/qr?origin=${encodeURIComponent(location.origin)}`),
   invite: (code: string) => req<Team>(`/api/invite/${code}`),
   join: (code: string) => req<Team>(`/api/invite/${code}/join`, { method: 'POST' }),
-  feed: (id: string) => req<Report[]>(`/api/teams/${id}/feed`),
-  like: (teamId: string, date: string, userId: string) => req<{ liked: boolean }>(`/api/teams/${teamId}/like`, { method: 'POST', body: JSON.stringify({ date, userId }) }),
-  comment: (teamId: string, date: string, userId: string, text: string) => req<Comment>(`/api/teams/${teamId}/comments`, { method: 'POST', body: JSON.stringify({ date, userId, text }) }),
+  feed: (id: string, date: string) => req<DayFeed>(`/api/teams/${id}/feed?date=${date}`),
+  teamCalendar: (id: string, from: string, to: string) => req<TeamCalendar>(`/api/teams/${id}/calendar?from=${from}&to=${to}`),
+  teamStats: (id: string, days: number) => req<TeamStats>(`/api/teams/${id}/stats?days=${days}`),
+  like: (teamId: string, target: { date: string; userId: string } | { postId: string }) => req<{ liked: boolean }>(`/api/teams/${teamId}/like`, { method: 'POST', body: JSON.stringify(target) }),
+  comment: (teamId: string, target: { date: string; userId: string } | { postId: string }, text: string) => req<Comment>(`/api/teams/${teamId}/comments`, { method: 'POST', body: JSON.stringify({ ...target, text }) }),
+  posts: (id: string) => req<Post[]>(`/api/teams/${id}/posts`),
+  createPost: (id: string, fd: FormData) => req<Post>(`/api/teams/${id}/posts`, { method: 'POST', body: fd }),
+  deletePost: (id: string) => req(`/api/posts/${id}`, { method: 'DELETE' }),
   deleteComment: (id: string) => req(`/api/comments/${id}`, { method: 'DELETE' }),
   report: (date: string) => req<Report>(`/api/report?date=${date}`),
   calendar: () => req<Record<string, { study: number; meal: number; workout: number }>>('/api/report/calendar'),

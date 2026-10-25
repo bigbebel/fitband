@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import db, { save, load, storeUpload, supabase } from './db.js';
 import { analyzeMeal } from './ai.js';
 import { parseSamsungCsv, normalizeWorkouts } from './health.js';
+import { migrateSocial, dayFeed, calendar, teamStats, targetOf, toggleLike, addComment, listPosts, createPost, deletePost } from './team-social.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
@@ -172,50 +173,58 @@ app.post('/api/invite/:code/join', auth, (req, res) => {
   res.json(team);
 });
 
-// 팀 피드 (날짜·사람별 보고서 + 좋아요/댓글)
-app.get('/api/teams/:id/feed', auth, (req, res) => {
+// ===== 팀 소셜: 날짜별 보고서 피드 + 제출현황, 게시글, 좋아요/댓글, 달력, 통계 =====
+function teamOr404(req, res) {
   const team = db.teams.find((t) => t.id === req.params.id);
-  if (!team) return res.status(404).json({ error: '팀 없음' });
-  const entries = db.entries.filter((e) => e.sharedTeams?.includes(team.id)).sort((a, b) => b.createdAt - a.createdAt);
-  const groups = {};
-  for (const e of entries) {
-    const key = `${e.date}|${e.userId}`;
-    if (!groups[key]) {
-      const u = db.users.find((x) => x.id === e.userId);
-      groups[key] = { key, teamId: team.id, date: e.date, user: { id: e.userId, name: u?.name || '?', calorieGoal: u?.calorieGoal || 2000 }, entries: [] };
-    }
-    groups[key].entries.push(e);
-  }
-  res.json(Object.values(groups).sort((a, b) => b.date.localeCompare(a.date)).map((g) => ({
-    ...withSummary(g),
-    likes: db.likes.filter((l) => l.teamId === team.id && l.date === g.date && l.userId === g.user.id).map((l) => l.authorId),
-    liked: db.likes.some((l) => l.teamId === team.id && l.date === g.date && l.userId === g.user.id && l.authorId === req.user.id),
-    comments: db.comments.filter((c) => c.teamId === team.id && c.date === g.date && c.userId === g.user.id).map(withAuthor),
-  })));
-});
-function withAuthor(c) { const u = db.users.find((x) => x.id === c.authorId); return { ...c, author: { id: c.authorId, name: u?.name || '?' } }; }
+  if (!team) { res.status(404).json({ error: '팀 없음' }); return null; }
+  if (!requireMember(req, res, team.id)) return null;
+  return team;
+}
 function requireMember(req, res, teamId) {
   if (!db.members.some((m) => m.teamId === teamId && m.userId === req.user.id)) { res.status(403).json({ error: '팀 멤버가 아닙니다' }); return false; }
   return true;
 }
+app.get('/api/teams/:id/feed', auth, (req, res) => {
+  const team = teamOr404(req, res); if (!team) return;
+  res.json(dayFeed(team, req.query.date || today(), req.user.id, withSummary));
+});
+app.get('/api/teams/:id/calendar', auth, (req, res) => {
+  const team = teamOr404(req, res); if (!team) return;
+  res.json(calendar(team, req.query.from || '0000', req.query.to || '9999'));
+});
+app.get('/api/teams/:id/stats', auth, (req, res) => {
+  const team = teamOr404(req, res); if (!team) return;
+  res.json(teamStats(team, Math.min(90, n(req.query.days) || 7), withSummary));
+});
 app.post('/api/teams/:id/like', auth, (req, res) => {
-  const { date, userId } = req.body;
-  if (!requireMember(req, res, req.params.id)) return;
-  const i = db.likes.findIndex((l) => l.teamId === req.params.id && l.date === date && l.userId === userId && l.authorId === req.user.id);
-  if (i >= 0) db.likes.splice(i, 1); else db.likes.push({ teamId: req.params.id, date, userId, authorId: req.user.id, createdAt: Date.now() });
-  save(); res.json({ liked: i < 0 });
+  const team = teamOr404(req, res); if (!team) return;
+  const target = targetOf(req.body); if (!target) return res.status(400).json({ error: '대상 없음' });
+  res.json({ liked: toggleLike(team.id, target, req.user.id) });
 });
 app.post('/api/teams/:id/comments', auth, (req, res) => {
-  const { date, userId, text } = req.body;
-  if (!requireMember(req, res, req.params.id)) return;
-  if (!String(text || '').trim()) return res.status(400).json({ error: '내용을 입력하세요' });
-  const c = { id: nanoid(10), teamId: req.params.id, date, userId, authorId: req.user.id, text: String(text).trim(), createdAt: Date.now() };
-  db.comments.push(c); save(); res.json(withAuthor(c));
+  const team = teamOr404(req, res); if (!team) return;
+  const target = targetOf(req.body); if (!target) return res.status(400).json({ error: '대상 없음' });
+  if (!String(req.body.text || '').trim()) return res.status(400).json({ error: '내용을 입력하세요' });
+  res.json(addComment(team.id, target, req.user.id, req.body.text));
 });
 app.delete('/api/comments/:id', auth, (req, res) => {
   const i = db.comments.findIndex((c) => c.id === req.params.id && c.authorId === req.user.id);
   if (i < 0) return res.status(404).json({ error: '없음' });
   db.comments.splice(i, 1); save(); res.json({ ok: true });
+});
+app.get('/api/teams/:id/posts', auth, (req, res) => {
+  const team = teamOr404(req, res); if (!team) return;
+  res.json(listPosts(team, req.user.id, 50, req.query.before));
+});
+app.post('/api/teams/:id/posts', auth, upload.single('file'), async (req, res) => {
+  const team = teamOr404(req, res); if (!team) return;
+  if (!String(req.body.text || '').trim() && !req.file) return res.status(400).json({ error: '내용이나 사진을 올려주세요' });
+  try { res.json(await createPost(team, req.user.id, req.body.text, req.file)); }
+  catch (err) { res.status(500).json({ error: '업로드 실패: ' + err.message }); }
+});
+app.delete('/api/posts/:id', auth, (req, res) => {
+  if (!deletePost(req.params.id, req.user.id)) return res.status(404).json({ error: '없음' });
+  res.json({ ok: true });
 });
 
 // ================= 보고서 =================
@@ -395,4 +404,5 @@ if (fs.existsSync(dist)) {
 
 const PORT = process.env.PORT || 3000;
 await load();
+migrateSocial();
 app.listen(PORT, () => console.log(`FitBand server on http://localhost:${PORT} (OpenAI: ${process.env.OPENAI_API_KEY ? 'on' : 'mock'})`));
